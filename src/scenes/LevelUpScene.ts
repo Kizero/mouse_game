@@ -1,16 +1,19 @@
 import Phaser from 'phaser';
 import { WeaponManager, WeaponType, WEAPON_INFO } from '../systems/WeaponManager';
+import { PassiveItemManager, PassiveItemType, PASSIVE_ITEM_INFO } from '../systems/PassiveItemManager';
 import { GAME_CONFIG } from '../config/GameConfig';
 
 interface LevelUpOption {
-  type: 'weapon' | 'upgrade';
+  type: 'weapon' | 'upgrade' | 'passive';
   weaponType?: WeaponType;
+  passiveType?: PassiveItemType;
   title: string;
   description: string;
 }
 
 export class LevelUpScene extends Phaser.Scene {
   private weaponManager!: WeaponManager;
+  private passiveItemManager!: PassiveItemManager;
   private currentWeapons: WeaponType[] = [];
   private options: LevelUpOption[] = [];
 
@@ -20,6 +23,7 @@ export class LevelUpScene extends Phaser.Scene {
 
   init(data: any) {
     this.weaponManager = data.weaponManager;
+    this.passiveItemManager = data.passiveItemManager;
     this.currentWeapons = data.currentWeapons || [];
   }
 
@@ -57,14 +61,29 @@ export class LevelUpScene extends Phaser.Scene {
     const allWeapons: WeaponType[] = ['spinner', 'seedgun', 'sawdust', 'bird', 'cheese', 'hoard', 'water'];
     const availableNewWeapons = allWeapons.filter(w => !this.currentWeapons.includes(w));
 
-    // 生成3个随机选项
-    for (let i = 0; i < 3; i++) {
-      // 50%几率获得新武器（如果有可用的），50%几率升级现有武器
-      const shouldGetNewWeapon = availableNewWeapons.length > 0 &&
-                                  (this.currentWeapons.length === 0 || Math.random() < 0.5);
+    // 获取可用的被动道具
+    const availablePassiveItems = this.passiveItemManager.getRandomItemOptions(3);
 
-      if (shouldGetNewWeapon) {
-        // 新武器
+    // 生成3个随机选项（混合武器和被动道具）
+    for (let i = 0; i < 3; i++) {
+      const rand = Math.random();
+
+      // 30%几率获得被动道具
+      if (rand < 0.3 && availablePassiveItems.length > 0) {
+        const passiveType = availablePassiveItems.shift()!;
+        const info = PASSIVE_ITEM_INFO[passiveType];
+        const currentLevel = this.passiveItemManager.getItemLevel(passiveType);
+
+        options.push({
+          type: 'passive',
+          passiveType,
+          title: `${info.icon} ${info.name}`,
+          description: `Lv.${currentLevel} → Lv.${currentLevel + 1} | ${info.description}`,
+        });
+      }
+      // 35%几率获得新武器（如果有可用的）
+      else if (rand < 0.65 && availableNewWeapons.length > 0 &&
+               (this.currentWeapons.length === 0 || Math.random() < 0.7)) {
         const weaponType = Phaser.Utils.Array.RemoveRandomElement(availableNewWeapons) as unknown as WeaponType | undefined;
         if (weaponType) {
           const info = WEAPON_INFO[weaponType];
@@ -75,8 +94,9 @@ export class LevelUpScene extends Phaser.Scene {
             description: info.description,
           });
         }
-      } else if (this.currentWeapons.length > 0) {
-        // 升级现有武器
+      }
+      // 35%几率升级现有武器
+      else if (this.currentWeapons.length > 0) {
         const weaponType = Phaser.Utils.Array.GetRandom(this.currentWeapons) as unknown as WeaponType;
         const info = WEAPON_INFO[weaponType];
         options.push({
@@ -88,16 +108,33 @@ export class LevelUpScene extends Phaser.Scene {
       }
     }
 
-    // 如果选项不足3个，用升级填充
-    while (options.length < 3 && this.currentWeapons.length > 0) {
-      const weaponType = Phaser.Utils.Array.GetRandom(this.currentWeapons) as unknown as WeaponType;
-      const info = WEAPON_INFO[weaponType];
-      options.push({
-        type: 'upgrade',
-        weaponType,
-        title: `⬆️ ${info.name}`,
-        description: `升级 ${info.name}`,
-      });
+    // 如果选项不足3个，用被动道具或武器升级填充
+    while (options.length < 3) {
+      if (availablePassiveItems.length > 0 && Math.random() < 0.5) {
+        // 填充被动道具
+        const passiveType = availablePassiveItems.shift()!;
+        const info = PASSIVE_ITEM_INFO[passiveType];
+        const currentLevel = this.passiveItemManager.getItemLevel(passiveType);
+
+        options.push({
+          type: 'passive',
+          passiveType,
+          title: `${info.icon} ${info.name}`,
+          description: `Lv.${currentLevel} → Lv.${currentLevel + 1} | ${info.description}`,
+        });
+      } else if (this.currentWeapons.length > 0) {
+        // 填充武器升级
+        const weaponType = Phaser.Utils.Array.GetRandom(this.currentWeapons) as unknown as WeaponType;
+        const info = WEAPON_INFO[weaponType];
+        options.push({
+          type: 'upgrade',
+          weaponType,
+          title: `⬆️ ${info.name}`,
+          description: `升级 ${info.name}`,
+        });
+      } else {
+        break; // 无法继续填充
+      }
     }
 
     return options;
@@ -164,7 +201,9 @@ export class LevelUpScene extends Phaser.Scene {
   }
 
   private selectOption(option: LevelUpOption) {
-    if (option.weaponType) {
+    if (option.type === 'passive' && option.passiveType) {
+      this.passiveItemManager.addItem(option.passiveType);
+    } else if (option.weaponType) {
       this.weaponManager.addWeapon(option.weaponType);
     }
 

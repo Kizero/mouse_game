@@ -14,6 +14,7 @@ export class SpinnerWeapon {
   private damage: number = 10;
   private radius: number = 60;
   private currentAngle: number = 0;
+  private evolved: boolean = false;
 
   constructor(scene: Phaser.Scene, player: Player) {
     this.scene = scene;
@@ -37,19 +38,28 @@ export class SpinnerWeapon {
   private drawSpinner(g: Phaser.GameObjects.Graphics) {
     g.clear();
 
+    const color = this.evolved ? 0x00ffff : 0x00ff00; // 进化后变为青色
+    const size = this.evolved ? 20 : 15; // 进化后更大
+
     // 滚轮外圈
-    g.lineStyle(3, 0x00ff00, 1);
-    g.strokeCircle(0, 0, 15);
+    g.lineStyle(this.evolved ? 4 : 3, color, 1);
+    g.strokeCircle(0, 0, size);
 
     // 滚轮辐条
-    for (let i = 0; i < 6; i++) {
-      const angle = (i / 6) * Math.PI * 2;
-      g.lineBetween(0, 0, Math.cos(angle) * 15, Math.sin(angle) * 15);
+    for (let i = 0; i < (this.evolved ? 8 : 6); i++) {
+      const angle = (i / (this.evolved ? 8 : 6)) * Math.PI * 2;
+      g.lineBetween(0, 0, Math.cos(angle) * size, Math.sin(angle) * size);
     }
 
     // 中心
-    g.fillStyle(0x00ff00, 1);
-    g.fillCircle(0, 0, 5);
+    g.fillStyle(color, 1);
+    g.fillCircle(0, 0, this.evolved ? 7 : 5);
+
+    // 进化后添加光环
+    if (this.evolved) {
+      g.lineStyle(2, 0xffffff, 0.5);
+      g.strokeCircle(0, 0, size + 5);
+    }
   }
 
   update(delta: number) {
@@ -91,5 +101,18 @@ export class SpinnerWeapon {
 
   getLevel(): number {
     return this.level;
+  }
+
+  evolve() {
+    if (this.evolved) return;
+
+    this.evolved = true;
+    this.damage *= 2;
+    this.rotationSpeed *= 1.5;
+    this.radius *= 1.5; // 范围扩大50%
+    this.spinnerCount += 2;
+
+    this.createSpinners();
+    console.log(`⚡ 滚轮飞镖进化为：极速转轮！`);
   }
 }

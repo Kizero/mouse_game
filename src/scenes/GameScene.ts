@@ -5,6 +5,7 @@ import { Player } from '../entities/Player';
 import { WeaponManager } from '../systems/WeaponManager';
 import { EnemyManager } from '../systems/EnemyManager';
 import { UIManager } from '../systems/UIManager';
+import { PassiveItemManager } from '../systems/PassiveItemManager';
 import { ExperienceGem } from '../entities/ExperienceGem';
 import { ParticleManager } from '../effects/ParticleManager';
 import { CameraEffects } from '../effects/CameraEffects';
@@ -16,6 +17,7 @@ export class GameScene extends Phaser.Scene {
   private weaponManager!: WeaponManager;
   private enemyManager!: EnemyManager;
   private uiManager!: UIManager;
+  private passiveItemManager!: PassiveItemManager;
   private expGems!: Phaser.GameObjects.Group;
   private particleManager!: ParticleManager;
   private cameraEffects!: CameraEffects;
@@ -65,6 +67,10 @@ export class GameScene extends Phaser.Scene {
     this.weaponManager = new WeaponManager(this, this.player);
     this.enemyManager = new EnemyManager(this, this.player);
     this.uiManager = new UIManager(this, this.player);
+    this.passiveItemManager = new PassiveItemManager(this, this.player);
+
+    // 连接武器管理器和被动道具管理器
+    this.weaponManager.setPassiveItemManager(this.passiveItemManager);
 
     // 设置输入
     this.setupInput();
@@ -106,6 +112,21 @@ export class GameScene extends Phaser.Scene {
     // 玩家死亡
     this.events.on('player-death', () => {
       this.handlePlayerDeath();
+    });
+
+    // 波次开始
+    this.events.on('wave-start', (waveNumber: number) => {
+      this.showWaveNotification(waveNumber);
+    });
+
+    // Boss生成
+    this.events.on('boss-spawned', (bossNumber: number) => {
+      this.showBossNotification(bossNumber);
+    });
+
+    // Boss被击败
+    this.events.on('boss-defeated', (x: number, y: number) => {
+      this.handleBossDefeat(x, y);
     });
 
     // 武器碰撞检测
@@ -161,6 +182,11 @@ export class GameScene extends Phaser.Scene {
       this.showLevelUpScreen();
     });
 
+    // 武器进化
+    this.events.on('weapon-evolved', (x: number, y: number, weaponName: string) => {
+      this.handleWeaponEvolution(x, y, weaponName);
+    });
+
     // 区域伤害（用于木屑旋风、奶酪陷阱等）
     this.events.on('weapon-area-damage', (x: number, y: number, radius: number, damage: number, callback?: Function) => {
       const enemies = this.enemyManager.getEnemies().getChildren();
@@ -209,6 +235,7 @@ export class GameScene extends Phaser.Scene {
     this.scene.pause();
     this.scene.launch('LevelUpScene', {
       weaponManager: this.weaponManager,
+      passiveItemManager: this.passiveItemManager,
       currentWeapons: Array.from(this.weaponManager.getWeapons().keys()),
     });
 
@@ -293,6 +320,181 @@ export class GameScene extends Phaser.Scene {
         level: this.player.getLevel(),
         time: this.gameTime,
       });
+    });
+  }
+
+  private showWaveNotification(waveNumber: number) {
+    const { WIDTH, HEIGHT } = GAME_CONFIG;
+
+    // 波次提示
+    const waveText = this.add.text(WIDTH / 2, HEIGHT / 2, `第 ${waveNumber} 波`, {
+      fontSize: '64px',
+      color: '#ff6b35',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 6,
+    });
+    waveText.setOrigin(0.5);
+    waveText.setDepth(2000);
+    waveText.setAlpha(0);
+
+    // 动画
+    this.tweens.add({
+      targets: waveText,
+      alpha: 1,
+      scale: 1.2,
+      duration: 300,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.time.delayedCall(1500, () => {
+          this.tweens.add({
+            targets: waveText,
+            alpha: 0,
+            scale: 0.8,
+            duration: 300,
+            onComplete: () => waveText.destroy(),
+          });
+        });
+      },
+    });
+
+    // 震动
+    this.cameraEffects.shakeMedium();
+  }
+
+  private showBossNotification(bossNumber: number) {
+    const { WIDTH, HEIGHT } = GAME_CONFIG;
+
+    // Boss警告
+    const bossText = this.add.text(WIDTH / 2, HEIGHT / 2, '⚠️ Boss 出现 ⚠️', {
+      fontSize: '72px',
+      color: '#ff0000',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 8,
+    });
+    bossText.setOrigin(0.5);
+    bossText.setDepth(2000);
+    bossText.setAlpha(0);
+
+    // 动画
+    this.tweens.add({
+      targets: bossText,
+      alpha: 1,
+      scale: 1.3,
+      duration: 400,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.time.delayedCall(2000, () => {
+          this.tweens.add({
+            targets: bossText,
+            alpha: 0,
+            scale: 0.8,
+            duration: 400,
+            onComplete: () => bossText.destroy(),
+          });
+        });
+      },
+    });
+
+    // 强烈震动 + 闪光
+    this.cameraEffects.shakeHeavy();
+    this.cameraEffects.flash(0xff0000, 300);
+  }
+
+  private handleBossDefeat(x: number, y: number) {
+    console.log('🎉 Boss已被击败！');
+
+    // Boss死亡特效
+    this.particleManager.bossDefeat(x, y);
+    this.cameraEffects.shakeHeavy();
+    this.cameraEffects.flash(0xffd700, 500);
+    this.cameraEffects.zoom(1.2, 300);
+
+    // 显示击败提示
+    const { WIDTH, HEIGHT } = GAME_CONFIG;
+    const victoryText = this.add.text(WIDTH / 2, HEIGHT / 2 - 100, '🏆 Boss 击败！🏆', {
+      fontSize: '64px',
+      color: '#ffd700',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 6,
+    });
+    victoryText.setOrigin(0.5);
+    victoryText.setDepth(2000);
+    victoryText.setAlpha(0);
+
+    this.tweens.add({
+      targets: victoryText,
+      alpha: 1,
+      scale: 1.2,
+      duration: 400,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.time.delayedCall(3000, () => {
+          this.tweens.add({
+            targets: victoryText,
+            alpha: 0,
+            duration: 400,
+            onComplete: () => victoryText.destroy(),
+          });
+        });
+      },
+    });
+  }
+
+  private handleWeaponEvolution(x: number, y: number, weaponName: string) {
+    console.log(`⚡ 武器进化成功！${weaponName}`);
+
+    // 进化特效
+    this.particleManager.weaponEvolution(x, y);
+    this.cameraEffects.shakeHeavy();
+    this.cameraEffects.flash(0x00ffff, 500);
+    this.cameraEffects.zoom(1.3, 400);
+
+    // 显示进化提示
+    const { WIDTH, HEIGHT } = GAME_CONFIG;
+    const evolutionText = this.add.text(WIDTH / 2, HEIGHT / 2, `${weaponName}`, {
+      fontSize: '72px',
+      color: '#00ffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 8,
+    });
+    evolutionText.setOrigin(0.5);
+    evolutionText.setDepth(2000);
+    evolutionText.setAlpha(0);
+
+    const subtitleText = this.add.text(WIDTH / 2, HEIGHT / 2 + 80, '武器进化完成！', {
+      fontSize: '36px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4,
+    });
+    subtitleText.setOrigin(0.5);
+    subtitleText.setDepth(2000);
+    subtitleText.setAlpha(0);
+
+    this.tweens.add({
+      targets: [evolutionText, subtitleText],
+      alpha: 1,
+      scale: 1.2,
+      duration: 500,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.time.delayedCall(2500, () => {
+          this.tweens.add({
+            targets: [evolutionText, subtitleText],
+            alpha: 0,
+            duration: 400,
+            onComplete: () => {
+              evolutionText.destroy();
+              subtitleText.destroy();
+            },
+          });
+        });
+      },
     });
   }
 

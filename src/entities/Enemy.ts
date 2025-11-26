@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { GAME_CONFIG } from '../config/GameConfig';
 import { Player } from './Player';
 
-export type EnemyType = 'ant' | 'cockroach' | 'spider' | 'beetle';
+export type EnemyType = 'ant' | 'cockroach' | 'spider' | 'beetle' | 'boss';
 
 export class Enemy extends Phaser.GameObjects.Container {
   public body!: Phaser.Physics.Arcade.Body;
@@ -13,6 +13,8 @@ export class Enemy extends Phaser.GameObjects.Container {
   private speed: number = 0;
   private damage: number = 0;
   private expValue: number = 0;
+  private healthBar?: Phaser.GameObjects.Graphics;
+  private healthBarBg?: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene, x: number, y: number, type: EnemyType) {
     super(scene, x, y);
@@ -25,8 +27,15 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.sprite = this.createEnemySprite();
     this.add(this.sprite);
 
-    this.body.setCircle(12);
-    this.setSize(24, 24);
+    // Boss敌人更大
+    if (type === 'boss') {
+      this.body.setCircle(40);
+      this.setSize(80, 80);
+      this.createHealthBar();
+    } else {
+      this.body.setCircle(12);
+      this.setSize(24, 24);
+    }
   }
 
   private setEnemyStats() {
@@ -58,6 +67,13 @@ export class Enemy extends Phaser.GameObjects.Container {
         this.speed = 60;
         this.damage = 15;
         this.expValue = 5;
+        break;
+      case 'boss':
+        this.health = 1000;
+        this.maxHealth = 1000;
+        this.speed = 40;
+        this.damage = 30;
+        this.expValue = 100;
         break;
     }
   }
@@ -105,6 +121,34 @@ export class Enemy extends Phaser.GameObjects.Container {
         g.lineStyle(2, 0x1a300d);
         g.lineBetween(0, -9, 0, 9);
         break;
+
+      case 'boss':
+        // Boss - 巨型老鼠王（红色威胁）
+        // 主体
+        g.fillStyle(0xcc0000, 1);
+        g.fillCircle(0, 5, 35);
+        g.fillCircle(0, -10, 28);
+        // 眼睛
+        g.fillStyle(0xff0000, 1);
+        g.fillCircle(-12, -12, 6);
+        g.fillCircle(12, -12, 6);
+        g.fillStyle(0x000000, 1);
+        g.fillCircle(-12, -12, 3);
+        g.fillCircle(12, -12, 3);
+        // 耳朵
+        g.fillStyle(0xaa0000, 1);
+        g.fillCircle(-22, -20, 12);
+        g.fillCircle(22, -20, 12);
+        // 獠牙
+        g.fillStyle(0xffffff, 1);
+        g.fillTriangle(-8, -5, -5, -5, -6.5, 2);
+        g.fillTriangle(8, -5, 5, -5, 6.5, 2);
+        // 皇冠
+        g.fillStyle(0xffd700, 1);
+        for (let i = -2; i <= 2; i++) {
+          g.fillTriangle(i * 8 - 4, -28, i * 8 + 4, -28, i * 8, -35);
+        }
+        break;
     }
 
     return g;
@@ -150,6 +194,11 @@ export class Enemy extends Phaser.GameObjects.Container {
       yoyo: true,
     });
 
+    // 更新Boss血条
+    if (this.enemyType === 'boss' && this.healthBar) {
+      this.updateHealthBar();
+    }
+
     if (this.health <= 0) {
       this.die();
     }
@@ -171,6 +220,11 @@ export class Enemy extends Phaser.GameObjects.Container {
       case 'beetle':
         color = 0x2d5016;
         break;
+      case 'boss':
+        color = 0xcc0000;
+        // Boss死亡时额外效果
+        this.scene.events.emit('boss-defeated', this.x, this.y);
+        break;
     }
 
     // 掉落经验宝石（传递颜色）
@@ -179,7 +233,57 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.destroy();
   }
 
+  private createHealthBar() {
+    // 血条背景
+    this.healthBarBg = this.scene.add.graphics();
+    this.healthBarBg.fillStyle(0x000000, 0.8);
+    this.healthBarBg.fillRect(-50, -60, 100, 8);
+    this.add(this.healthBarBg);
+
+    // 血条
+    this.healthBar = this.scene.add.graphics();
+    this.add(this.healthBar);
+    this.updateHealthBar();
+
+    // Boss名称
+    const bossName = this.scene.add.text(0, -75, '老鼠王', {
+      fontSize: '16px',
+      color: '#ff0000',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3,
+    });
+    bossName.setOrigin(0.5);
+    this.add(bossName);
+  }
+
+  private updateHealthBar() {
+    if (!this.healthBar) return;
+
+    this.healthBar.clear();
+    const healthPercent = Math.max(0, this.health / this.maxHealth);
+
+    // 根据血量显示不同颜色
+    let color = 0x00ff00;
+    if (healthPercent < 0.3) {
+      color = 0xff0000;
+    } else if (healthPercent < 0.6) {
+      color = 0xffaa00;
+    }
+
+    this.healthBar.fillStyle(color, 1);
+    this.healthBar.fillRect(-50, -60, 100 * healthPercent, 8);
+  }
+
   getExpValue(): number {
     return this.expValue;
+  }
+
+  isBoss(): boolean {
+    return this.enemyType === 'boss';
+  }
+
+  getEnemyType(): EnemyType {
+    return this.enemyType;
   }
 }

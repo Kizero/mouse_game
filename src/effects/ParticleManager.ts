@@ -304,4 +304,77 @@ export class ParticleManager {
       lightning.destroy();
     });
   }
+
+  /**
+   * Boss击败效果
+   */
+  bossDefeat(x: number, y: number) {
+    // 超大爆炸
+    for (let i = 0; i < 100; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 100 + Math.random() * 200;
+      const size = 5 + Math.random() * 10;
+      const colors = [0xff0000, 0xff6600, 0xffaa00, 0xffd700, 0xffffff];
+      const particle = this.scene.add.circle(
+        x,
+        y,
+        size,
+        Phaser.Utils.Array.GetRandom(colors) as unknown as number
+      );
+
+      this.scene.tweens.add({
+        targets: particle,
+        x: x + Math.cos(angle) * (speed + Math.random() * 150),
+        y: y + Math.sin(angle) * (speed + Math.random() * 150),
+        alpha: 0,
+        scale: 0,
+        duration: 1000 + Math.random() * 500,
+        ease: 'Cubic.easeOut',
+        onComplete: () => particle.destroy(),
+      });
+    }
+
+    // 多重冲击波
+    for (let i = 0; i < 5; i++) {
+      const shockwave = this.scene.add.circle(x, y, 30, 0xff0000, 0);
+      shockwave.setStrokeStyle(8, 0xffd700, 1);
+
+      this.scene.tweens.add({
+        targets: shockwave,
+        scale: 10,
+        alpha: 0,
+        duration: 1500,
+        delay: i * 100,
+        ease: 'Cubic.easeOut',
+        onComplete: () => shockwave.destroy(),
+      });
+    }
+
+    // 螺旋星星爆发
+    for (let i = 0; i < 40; i++) {
+      const angle = (i / 40) * Math.PI * 2;
+      const star = this.scene.add.star(x, y, 5, 5, 10, 0xffd700);
+
+      this.scene.tweens.add({
+        targets: star,
+        x: x + Math.cos(angle) * (150 + Math.random() * 100),
+        y: y + Math.sin(angle) * (150 + Math.random() * 100),
+        alpha: 0,
+        rotation: Math.PI * 4,
+        duration: 1200,
+        ease: 'Cubic.easeOut',
+        onComplete: () => star.destroy(),
+      });
+    }
+
+    // 中心闪光
+    const flash = this.scene.add.circle(x, y, 80, 0xffffff, 1);
+    this.scene.tweens.add({
+      targets: flash,
+      scale: 5,
+      alpha: 0,
+      duration: 500,
+      onComplete: () => flash.destroy(),
+    });
+  }
 }
