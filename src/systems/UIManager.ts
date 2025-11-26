@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_CONFIG } from '../config/GameConfig';
 import { Player } from '../entities/Player';
+import { SkillManager } from './SkillManager';
 
 export class UIManager {
   private scene: Phaser.Scene;
@@ -11,6 +12,12 @@ export class UIManager {
   private expBar!: Phaser.GameObjects.Graphics;
   private levelText!: Phaser.GameObjects.Text;
   private timeText!: Phaser.GameObjects.Text;
+
+  // 技能UI
+  private skillIcon!: Phaser.GameObjects.Text;
+  private skillCooldownOverlay!: Phaser.GameObjects.Graphics;
+  private skillCooldownText!: Phaser.GameObjects.Text;
+  private skillNameText!: Phaser.GameObjects.Text;
 
   constructor(scene: Phaser.Scene, player: Player) {
     this.scene = scene;
@@ -48,16 +55,71 @@ export class UIManager {
     });
     this.timeText.setOrigin(1, 0);
 
+    // 技能UI（屏幕底部中央）
+    const skillX = WIDTH / 2;
+    const skillY = GAME_CONFIG.HEIGHT - 100;
+
+    // 技能图标背景
+    const skillBg = this.scene.add.circle(skillX, skillY, 35, 0x000000, 0.7);
+    skillBg.setStrokeStyle(3, 0xffffff, 0.8);
+    skillBg.setDepth(1000);
+
+    // 技能图标
+    this.skillIcon = this.scene.add.text(skillX, skillY, '⚡', {
+      fontSize: '48px',
+    });
+    this.skillIcon.setOrigin(0.5);
+    this.skillIcon.setDepth(1001);
+
+    // 冷却遮罩
+    this.skillCooldownOverlay = this.scene.add.graphics();
+    this.skillCooldownOverlay.setDepth(1002);
+
+    // 冷却时间文本
+    this.skillCooldownText = this.scene.add.text(skillX, skillY, '', {
+      fontSize: '28px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4,
+    });
+    this.skillCooldownText.setOrigin(0.5);
+    this.skillCooldownText.setDepth(1003);
+
+    // 技能名称
+    this.skillNameText = this.scene.add.text(skillX, skillY + 50, '', {
+      fontSize: '16px',
+      color: '#ffffff',
+      backgroundColor: '#00000088',
+      padding: { x: 8, y: 4 },
+    });
+    this.skillNameText.setOrigin(0.5, 0);
+    this.skillNameText.setDepth(1000);
+
+    // 提示文字
+    const hintText = this.scene.add.text(skillX, skillY + 75, '[空格] 释放技能', {
+      fontSize: '14px',
+      color: '#cccccc',
+      backgroundColor: '#00000066',
+      padding: { x: 6, y: 3 },
+    });
+    hintText.setOrigin(0.5, 0);
+    hintText.setDepth(1000);
+
     // 设置UI深度（始终在最上层）
     [this.healthBar, this.healthText, this.expBar, this.levelText, this.timeText].forEach(
       obj => obj.setDepth(1000)
     );
   }
 
-  update(gameTime: number) {
+  update(gameTime: number, skillManager?: SkillManager) {
     this.updateHealthBar();
     this.updateExpBar();
     this.updateTime(gameTime);
+
+    if (skillManager) {
+      this.updateSkillUI(gameTime, skillManager);
+    }
   }
 
   private updateHealthBar() {
@@ -102,5 +164,63 @@ export class UIManager {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
     this.timeText.setText(`⏱️ ${minutes}:${secs.toString().padStart(2, '0')}`);
+  }
+
+  private updateSkillUI(gameTime: number, skillManager: SkillManager) {
+    const skillInfo = skillManager.getSkillInfo();
+    const cooldownPercent = skillManager.getCooldownPercent(gameTime);
+    const remainingCooldown = skillManager.getRemainingCooldown(gameTime);
+    const isReady = skillManager.isSkillReady(gameTime);
+    const isActive = skillManager.isSkillActive();
+
+    // 更新技能图标
+    this.skillIcon.setText(skillInfo.icon);
+
+    // 更新技能名称
+    this.skillNameText.setText(skillInfo.name);
+
+    // 清除冷却遮罩
+    this.skillCooldownOverlay.clear();
+
+    const { WIDTH, HEIGHT } = GAME_CONFIG;
+    const skillX = WIDTH / 2;
+    const skillY = HEIGHT - 100;
+    const radius = 35;
+
+    if (!isReady && !isActive) {
+      // 冷却中 - 绘制遮罩
+      this.skillCooldownOverlay.fillStyle(0x000000, 0.7);
+
+      // 绘制圆形遮罩（从顶部开始顺时针）
+      const startAngle = -Math.PI / 2;
+      const endAngle = startAngle + (1 - cooldownPercent) * Math.PI * 2;
+
+      this.skillCooldownOverlay.slice(skillX, skillY, radius, startAngle, endAngle, false);
+      this.skillCooldownOverlay.fillPath();
+
+      // 显示剩余秒数
+      this.skillCooldownText.setText(`${remainingCooldown}`);
+      this.skillCooldownText.setVisible(true);
+
+      // 图标变暗
+      this.skillIcon.setAlpha(0.5);
+    } else if (isActive) {
+      // 技能激活中 - 发光效果
+      this.skillCooldownText.setVisible(false);
+      this.skillIcon.setAlpha(1);
+
+      // 绘制发光圈
+      this.skillCooldownOverlay.lineStyle(3, 0xffff00, 1);
+      this.skillCooldownOverlay.strokeCircle(skillX, skillY, radius + 5);
+    } else {
+      // 技能准备就绪
+      this.skillCooldownText.setVisible(false);
+      this.skillIcon.setAlpha(1);
+
+      // 绘制就绪提示（脉冲效果）
+      const pulse = Math.sin(gameTime / 200) * 0.3 + 0.7;
+      this.skillCooldownOverlay.lineStyle(3, 0x00ff00, pulse);
+      this.skillCooldownOverlay.strokeCircle(skillX, skillY, radius + 5);
+    }
   }
 }

@@ -6,6 +6,7 @@ import { WeaponManager } from '../systems/WeaponManager';
 import { EnemyManager } from '../systems/EnemyManager';
 import { UIManager } from '../systems/UIManager';
 import { PassiveItemManager } from '../systems/PassiveItemManager';
+import { SkillManager, HamsterType } from '../systems/SkillManager';
 import { ExperienceGem } from '../entities/ExperienceGem';
 import { ParticleManager } from '../effects/ParticleManager';
 import { CameraEffects } from '../effects/CameraEffects';
@@ -18,6 +19,7 @@ export class GameScene extends Phaser.Scene {
   private enemyManager!: EnemyManager;
   private uiManager!: UIManager;
   private passiveItemManager!: PassiveItemManager;
+  private skillManager!: SkillManager;
   private expGems!: Phaser.GameObjects.Group;
   private particleManager!: ParticleManager;
   private cameraEffects!: CameraEffects;
@@ -26,6 +28,7 @@ export class GameScene extends Phaser.Scene {
   private totalKills: number = 0;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: any;
+  private skillKey!: Phaser.Input.Keyboard.Key;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -69,6 +72,9 @@ export class GameScene extends Phaser.Scene {
     this.uiManager = new UIManager(this, this.player);
     this.passiveItemManager = new PassiveItemManager(this, this.player);
 
+    // 初始化技能系统（默认金仓鼠）
+    this.skillManager = new SkillManager(this, this.player, 'golden');
+
     // 连接武器管理器和被动道具管理器
     this.weaponManager.setPassiveItemManager(this.passiveItemManager);
 
@@ -93,6 +99,9 @@ export class GameScene extends Phaser.Scene {
       S: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S),
       D: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
     };
+
+    // 技能按键（空格键）
+    this.skillKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
   }
 
   private setupEventListeners() {
@@ -228,6 +237,76 @@ export class GameScene extends Phaser.Scene {
         }
       });
     });
+
+    // 技能使用事件
+    this.events.on('skill-used', (hamsterType: string, x: number, y: number) => {
+      this.handleSkillUsed(hamsterType, x, y);
+    });
+
+    // 技能范围效果（战争践踏）
+    this.events.on('skill-area-effect', (x: number, y: number, radius: number, damage: number, stunDuration: number) => {
+      const enemies = this.enemyManager.getEnemies().getChildren();
+
+      enemies.forEach((enemy: any) => {
+        if (!enemy.active) return;
+
+        const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
+        if (dist < radius) {
+          enemy.takeDamage(damage);
+
+          // 眩晕效果（减速）
+          if (enemy.body) {
+            const originalSpeed = enemy.body.velocity.length();
+            enemy.setData('stunned', true);
+            enemy.body.setVelocity(0, 0);
+
+            this.time.delayedCall(stunDuration, () => {
+              enemy.setData('stunned', false);
+            });
+          }
+
+          // 击中特效
+          this.particleManager.weaponHit(enemy.x, enemy.y, 0xff6600);
+        }
+      });
+    });
+
+    // 技能减速场（时间回溯）
+    this.events.on('skill-slow-field', (x: number, y: number, radius: number, slowFactor: number) => {
+      const enemies = this.enemyManager.getEnemies().getChildren();
+
+      enemies.forEach((enemy: any) => {
+        if (!enemy.active || !enemy.body) return;
+
+        const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
+        if (dist < radius) {
+          // 减速效果
+          enemy.body.setVelocity(
+            enemy.body.velocity.x * slowFactor,
+            enemy.body.velocity.y * slowFactor
+          );
+        }
+      });
+    });
+
+    // 玩家治疗事件
+    this.events.on('player-healed', (x: number, y: number, amount: number) => {
+      // 治疗特效
+      for (let i = 0; i < 20; i++) {
+        const angle = (i / 20) * Math.PI * 2;
+        const particle = this.add.circle(x, y, 3, 0x00ff00);
+
+        this.tweens.add({
+          targets: particle,
+          x: x + Math.cos(angle) * 40,
+          y: y + Math.sin(angle) * 40 - 50,
+          alpha: 0,
+          duration: 800,
+          ease: 'Cubic.easeOut',
+          onComplete: () => particle.destroy(),
+        });
+      }
+    });
   }
 
   private showLevelUpScreen() {
@@ -258,12 +337,18 @@ export class GameScene extends Phaser.Scene {
     const speedMultiplier = this.arena.getSpeedMultiplier(this.player.x, this.player.y);
     this.player.setSpeedMultiplier(speedMultiplier);
 
+    // 检查技能按键
+    if (Phaser.Input.Keyboard.JustDown(this.skillKey)) {
+      this.skillManager.useSkill(this.gameTime);
+    }
+
     // 更新实体
     this.player.update(moveX, moveY);
     this.arena.update(this.player, this.gameTime);
     this.weaponManager.update(delta);
     this.enemyManager.update(delta, this.gameTime);
-    this.uiManager.update(this.gameTime);
+    this.skillManager.update();
+    this.uiManager.update(this.gameTime, this.skillManager);
 
     // 检查玩家拾取经验宝石
     this.checkExpGemCollection();
@@ -495,6 +580,144 @@ export class GameScene extends Phaser.Scene {
           });
         });
       },
+    });
+  }
+
+  private handleSkillUsed(hamsterType: string, x: number, y: number) {
+    const skillInfo = this.skillManager.getSkillInfo();
+    console.log(`🔥 技能释放：${skillInfo.name}`);
+
+    // 通用技能特效
+    this.cameraEffects.shakeHeavy();
+    this.cameraEffects.flash(0xffff00, 200);
+
+    // 根据不同仓鼠类型显示不同特效
+    switch (hamsterType) {
+      case 'golden':
+        // 法天象地 - 金色爆发
+        this.createSkillEffect(x, y, 0xffd700, '法天象地！', 80);
+        break;
+
+      case 'pudding':
+        // 疾风步 - 青色疾风
+        this.createSkillEffect(x, y, 0x00ffff, '疾风步！', 60);
+        for (let i = 0; i < 30; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 50 + Math.random() * 100;
+          const particle = this.add.circle(x, y, 2, 0x00ffff);
+
+          this.tweens.add({
+            targets: particle,
+            x: x + Math.cos(angle) * speed,
+            y: y + Math.sin(angle) * speed,
+            alpha: 0,
+            duration: 300,
+            onComplete: () => particle.destroy(),
+          });
+        }
+        break;
+
+      case 'bear':
+        // 战争践踏 - 橙色冲击波
+        this.createSkillEffect(x, y, 0xff6600, '战争践踏！', 70);
+        for (let i = 0; i < 5; i++) {
+          const shockwave = this.add.circle(x, y, 20, 0xff6600, 0);
+          shockwave.setStrokeStyle(5, 0xff6600, 1);
+
+          this.tweens.add({
+            targets: shockwave,
+            scale: 10,
+            alpha: 0,
+            duration: 800,
+            delay: i * 100,
+            onComplete: () => shockwave.destroy(),
+          });
+        }
+        break;
+
+      case 'elder':
+        // 时间回溯 - 紫色时光
+        this.createSkillEffect(x, y, 0x9966ff, '时间回溯！', 65);
+        // 时光粒子
+        for (let i = 0; i < 40; i++) {
+          const angle = (i / 40) * Math.PI * 2;
+          const particle = this.add.star(x, y, 4, 3, 6, 0x9966ff);
+
+          this.tweens.add({
+            targets: particle,
+            x: x + Math.cos(angle) * 250,
+            y: y + Math.sin(angle) * 250,
+            alpha: 0,
+            rotation: Math.PI * 2,
+            duration: 1000,
+            onComplete: () => particle.destroy(),
+          });
+        }
+        break;
+
+      case 'dwarf':
+        // 狂暴 - 红色能量
+        this.createSkillEffect(x, y, 0xff0000, '狂暴！', 70);
+        // 火焰粒子
+        for (let i = 0; i < 50; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const distance = Math.random() * 50;
+          const particle = this.add.circle(x + Math.cos(angle) * distance, y + Math.sin(angle) * distance, 3, 0xff0000);
+
+          this.tweens.add({
+            targets: particle,
+            y: particle.y - 100,
+            alpha: 0,
+            duration: 800 + Math.random() * 400,
+            onComplete: () => particle.destroy(),
+          });
+        }
+        break;
+    }
+  }
+
+  private createSkillEffect(x: number, y: number, color: number, text: string, size: number) {
+    const { WIDTH, HEIGHT } = GAME_CONFIG;
+
+    // 技能名称
+    const skillText = this.add.text(WIDTH / 2, HEIGHT / 3, text, {
+      fontSize: `${size}px`,
+      color: `#${color.toString(16).padStart(6, '0')}`,
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 6,
+    });
+    skillText.setOrigin(0.5);
+    skillText.setDepth(2000);
+    skillText.setAlpha(0);
+
+    this.tweens.add({
+      targets: skillText,
+      alpha: 1,
+      scale: 1.3,
+      duration: 300,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.time.delayedCall(1200, () => {
+          this.tweens.add({
+            targets: skillText,
+            alpha: 0,
+            y: skillText.y - 50,
+            duration: 300,
+            onComplete: () => skillText.destroy(),
+          });
+        });
+      },
+    });
+
+    // 中心爆发
+    const flash = this.add.circle(x, y, 50, color, 0.8);
+    this.tweens.add({
+      targets: flash,
+      scale: 8,
+      alpha: 0,
+      duration: 600,
+      onComplete: () => flash.destroy(),
     });
   }
 
