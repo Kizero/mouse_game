@@ -11,6 +11,7 @@ import { ExperienceGem } from '../entities/ExperienceGem';
 import { ParticleManager } from '../effects/ParticleManager';
 import { CameraEffects } from '../effects/CameraEffects';
 import { BackgroundManager } from '../effects/BackgroundManager';
+import { AudioManager } from '../systems/AudioManager';
 import { ProgressionManager } from '../systems/ProgressionManager';
 
 export class GameScene extends Phaser.Scene {
@@ -25,6 +26,7 @@ export class GameScene extends Phaser.Scene {
   private particleManager!: ParticleManager;
   private cameraEffects!: CameraEffects;
   private backgroundManager!: BackgroundManager;
+  private audioManager!: AudioManager;
 
   private gameTime: number = 0;
   private totalKills: number = 0;
@@ -51,6 +53,12 @@ export class GameScene extends Phaser.Scene {
     this.cameraEffects = new CameraEffects(this);
     this.backgroundManager = new BackgroundManager(this);
 
+    // 初始化音频系统
+    this.audioManager = new AudioManager(this);
+    this.audioManager.init().then(() => {
+      this.audioManager.playMusic();
+    });
+
     // 淡入效果
     this.cameraEffects.fadeIn(500);
 
@@ -74,6 +82,9 @@ export class GameScene extends Phaser.Scene {
     this.enemyManager = new EnemyManager(this, this.player);
     this.uiManager = new UIManager(this, this.player);
     this.passiveItemManager = new PassiveItemManager(this, this.player);
+
+    // 设置音频UI（必须在AudioManager初始化后）
+    this.uiManager.setAudioSettingsUI(this.audioManager);
 
     // 初始化技能系统（默认金仓鼠）
     this.skillManager = new SkillManager(this, this.player, 'golden');
@@ -119,6 +130,9 @@ export class GameScene extends Phaser.Scene {
       // 死亡特效
       this.particleManager.enemyDeath(x, y, color || 0xff0000);
       this.cameraEffects.shakeLight();
+
+      // 死亡音效
+      this.audioManager.playSound('enemy_death', 0.6);
     });
 
     // 玩家死亡
@@ -156,6 +170,9 @@ export class GameScene extends Phaser.Scene {
 
           // 击中特效
           this.particleManager.weaponHit(x, y);
+
+          // 击中音效
+          this.audioManager.playSound('weapon_hit', 0.3);
         }
       });
 
@@ -190,6 +207,9 @@ export class GameScene extends Phaser.Scene {
       this.cameraEffects.shakeMedium();
       this.cameraEffects.flash(0xffff00, 150);
       this.cameraEffects.zoom(1.15, 200);
+
+      // 升级音效
+      this.audioManager.playSound('levelup', 1);
 
       this.showLevelUpScreen();
     });
@@ -244,6 +264,16 @@ export class GameScene extends Phaser.Scene {
     // 技能使用事件
     this.events.on('skill-used', (hamsterType: string, x: number, y: number) => {
       this.handleSkillUsed(hamsterType, x, y);
+
+      // 技能音效
+      const skillSounds: { [key: string]: string } = {
+        golden: 'skill_avatar',
+        pudding: 'skill_wind',
+        bear: 'skill_stomp',
+        elder: 'skill_use',
+        dwarf: 'skill_use',
+      };
+      this.audioManager.playSound(skillSounds[hamsterType] || 'skill_use', 0.8);
     });
 
     // 技能范围效果（战争践踏）
@@ -392,6 +422,9 @@ export class GameScene extends Phaser.Scene {
           gem.getData('color') || 0x00ff00
         );
 
+        // 收集音效
+        this.audioManager.playSound('collect_gem', 0.4);
+
         gem.destroy();
       }
     });
@@ -499,6 +532,9 @@ export class GameScene extends Phaser.Scene {
     this.cameraEffects.shakeHeavy();
     this.cameraEffects.flash(0xffd700, 500);
     this.cameraEffects.zoom(1.2, 300);
+
+    // Boss死亡音效
+    this.audioManager.playSound('boss_death', 1);
 
     // 显示击败提示
     const { WIDTH, HEIGHT } = GAME_CONFIG;

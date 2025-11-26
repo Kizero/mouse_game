@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { GAME_CONFIG } from '../config/GameConfig';
 import { Player } from '../entities/Player';
 import { SkillManager } from './SkillManager';
+import { AudioSettingsUI } from '../ui/AudioSettingsUI';
+import { AudioManager } from './AudioManager';
 
 export class UIManager {
   private scene: Phaser.Scene;
@@ -18,6 +20,10 @@ export class UIManager {
   private skillCooldownOverlay!: Phaser.GameObjects.Graphics;
   private skillCooldownText!: Phaser.GameObjects.Text;
   private skillNameText!: Phaser.GameObjects.Text;
+
+  // 设置按钮和面板
+  private settingsButton!: Phaser.GameObjects.Text;
+  private audioSettingsUI?: AudioSettingsUI;
 
   constructor(scene: Phaser.Scene, player: Player) {
     this.scene = scene;
@@ -115,10 +121,36 @@ export class UIManager {
     hintText.setOrigin(0.5, 0);
     hintText.setDepth(1000);
 
+    // 设置按钮（右上角）
+    this.settingsButton = this.scene.add.text(GAME_CONFIG.WIDTH - 20, 70, '⚙️', {
+      fontSize: '32px',
+    });
+    this.settingsButton.setOrigin(1, 0);
+    this.settingsButton.setDepth(1000);
+    this.settingsButton.setInteractive({ useHandCursor: true });
+    this.settingsButton.on('pointerdown', () => {
+      if (this.audioSettingsUI) {
+        this.audioSettingsUI.toggle();
+      }
+    });
+    this.settingsButton.on('pointerover', () => {
+      this.settingsButton.setScale(1.1);
+    });
+    this.settingsButton.on('pointerout', () => {
+      this.settingsButton.setScale(1);
+    });
+
     // 设置UI深度（始终在最上层）
     [this.healthBar, this.healthText, this.expBar, this.levelText, this.timeText].forEach(
       obj => obj.setDepth(1000)
     );
+  }
+
+  /**
+   * 设置音频设置UI
+   */
+  setAudioSettingsUI(audioManager: AudioManager) {
+    this.audioSettingsUI = new AudioSettingsUI(this.scene, audioManager);
   }
 
   update(gameTime: number, skillManager?: SkillManager) {
