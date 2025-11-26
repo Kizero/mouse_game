@@ -7,7 +7,7 @@ import { Player } from '../entities/Player';
 export class HoardWeapon {
   private scene: Phaser.Scene;
   private player: Player;
-  private orbitItems: Phaser.GameObjects.Graphics[] = [];
+  private orbitItems: Phaser.GameObjects.Sprite[] = [];
   private level: number = 1;
   private itemCount: number = 4;
   private damage: number = 12;
@@ -25,51 +25,12 @@ export class HoardWeapon {
     this.orbitItems.forEach(item => item.destroy());
     this.orbitItems = [];
 
-    const foods = [
-      { color: 0xff6347, type: 'nut' },      // 坚果
-      { color: 0xff8c00, type: 'carrot' },   // 胡萝卜
-      { color: 0x90ee90, type: 'apple' },    // 苹果
-      { color: 0xffd700, type: 'seed' },     // 种子
-    ];
+    const foodTypes = ['nut', 'carrot', 'apple', 'seed'];
 
     for (let i = 0; i < this.itemCount; i++) {
-      const item = this.scene.add.graphics();
-      const food = foods[i % foods.length];
-
-      this.drawFood(item, food.color, food.type);
+      const type = foodTypes[i % foodTypes.length];
+      const item = this.scene.add.sprite(0, 0, `weapon_hoard_${type}`);
       this.orbitItems.push(item);
-    }
-  }
-
-  private drawFood(g: Phaser.GameObjects.Graphics, color: number, type: string) {
-    g.clear();
-
-    switch(type) {
-      case 'nut':
-        g.fillStyle(color, 1);
-        g.fillCircle(0, 0, 8);
-        g.fillStyle(0x8b4513, 1);
-        g.fillCircle(0, 0, 4);
-        break;
-      case 'carrot':
-        g.fillStyle(color, 1);
-        g.beginPath();
-        g.moveTo(0, -10);
-        g.lineTo(-5, 5);
-        g.lineTo(5, 5);
-        g.closePath();
-        g.fillPath();
-        break;
-      case 'apple':
-        g.fillStyle(color, 1);
-        g.fillCircle(0, 0, 7);
-        g.fillStyle(0x228b22, 1);
-        g.fillRect(-2, -10, 4, 5);
-        break;
-      case 'seed':
-        g.fillStyle(color, 1);
-        g.fillEllipse(0, 0, 6, 10);
-        break;
     }
   }
 

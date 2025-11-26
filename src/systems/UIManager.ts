@@ -28,32 +28,41 @@ export class UIManager {
   private createUI() {
     const { WIDTH } = GAME_CONFIG;
 
-    // 血条
+    // 血条（带阴影和边框）
     this.healthBar = this.scene.add.graphics();
     this.healthText = this.scene.add.text(20, 20, '', {
-      fontSize: '18px',
-      color: '#fff',
-      backgroundColor: '#00000088',
-      padding: { x: 10, y: 5 },
+      fontSize: '20px',
+      color: '#ffffff',
+      backgroundColor: '#000000dd',
+      padding: { x: 12, y: 8 },
+      fontFamily: 'Arial, sans-serif',
+      fontStyle: 'bold',
     });
+    this.healthText.setShadow(2, 2, '#000000', 0);
 
-    // 经验条
+    // 经验条（带阴影和边框）
     this.expBar = this.scene.add.graphics();
-    this.levelText = this.scene.add.text(20, 60, '', {
-      fontSize: '16px',
-      color: '#fff',
-      backgroundColor: '#00000088',
-      padding: { x: 10, y: 5 },
+    this.levelText = this.scene.add.text(20, 70, '', {
+      fontSize: '18px',
+      color: '#ffffff',
+      backgroundColor: '#000000dd',
+      padding: { x: 12, y: 8 },
+      fontFamily: 'Arial, sans-serif',
+      fontStyle: 'bold',
     });
+    this.levelText.setShadow(2, 2, '#000000', 0);
 
-    // 时间显示
+    // 时间显示（带阴影和边框）
     this.timeText = this.scene.add.text(WIDTH - 20, 20, '', {
-      fontSize: '24px',
-      color: '#fff',
-      backgroundColor: '#00000088',
-      padding: { x: 10, y: 5 },
+      fontSize: '28px',
+      color: '#ffeb3b',
+      backgroundColor: '#000000dd',
+      padding: { x: 14, y: 10 },
+      fontFamily: 'Arial, sans-serif',
+      fontStyle: 'bold',
     });
     this.timeText.setOrigin(1, 0);
+    this.timeText.setShadow(3, 3, '#000000', 0);
 
     // 技能UI（屏幕底部中央）
     const skillX = WIDTH / 2;
@@ -129,14 +138,24 @@ export class UIManager {
 
     this.healthBar.clear();
 
-    // 背景
-    this.healthBar.fillStyle(0x000000, 0.5);
-    this.healthBar.fillRect(20, 45, 200, 10);
+    // 外边框（深色）
+    this.healthBar.lineStyle(2, 0x000000, 1);
+    this.healthBar.strokeRoundedRect(18, 53, 204, 14, 7);
 
-    // 血量（爱心颜色）
+    // 背景（深色）
+    this.healthBar.fillStyle(0x1a1a1a, 0.9);
+    this.healthBar.fillRoundedRect(20, 55, 200, 10, 5);
+
+    // 血量（渐变效果）
     const color = percentage > 0.5 ? 0xff69b4 : (percentage > 0.25 ? 0xff9900 : 0xff0000);
     this.healthBar.fillStyle(color, 1);
-    this.healthBar.fillRect(20, 45, 200 * percentage, 10);
+    this.healthBar.fillRoundedRect(20, 55, 200 * percentage, 10, 5);
+
+    // 血量亮边
+    if (percentage > 0) {
+      this.healthBar.fillStyle(0xffffff, 0.3);
+      this.healthBar.fillRoundedRect(20, 55, 200 * percentage, 4, 5);
+    }
 
     this.healthText.setText(`❤️ ${Math.ceil(health)}/${maxHealth}`);
   }
@@ -148,13 +167,23 @@ export class UIManager {
 
     this.expBar.clear();
 
-    // 背景
-    this.expBar.fillStyle(0x000000, 0.5);
-    this.expBar.fillRect(20, 85, 200, 8);
+    // 外边框（深色）
+    this.expBar.lineStyle(2, 0x000000, 1);
+    this.expBar.strokeRoundedRect(18, 103, 204, 12, 6);
 
-    // 经验值
+    // 背景（深色）
+    this.expBar.fillStyle(0x1a1a1a, 0.9);
+    this.expBar.fillRoundedRect(20, 105, 200, 8, 4);
+
+    // 经验值（绿色渐变）
     this.expBar.fillStyle(0x00ff00, 1);
-    this.expBar.fillRect(20, 85, 200 * percentage, 8);
+    this.expBar.fillRoundedRect(20, 105, 200 * percentage, 8, 4);
+
+    // 经验值亮边
+    if (percentage > 0) {
+      this.expBar.fillStyle(0x88ff88, 0.6);
+      this.expBar.fillRoundedRect(20, 105, 200 * percentage, 3, 4);
+    }
 
     this.levelText.setText(`等级 ${this.player.getLevel()} • ${exp}/${expToNext} EXP`);
   }

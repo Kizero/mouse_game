@@ -7,7 +7,7 @@ import { Player } from '../entities/Player';
 export class SpinnerWeapon {
   private scene: Phaser.Scene;
   private player: Player;
-  private spinners: Phaser.GameObjects.Graphics[] = [];
+  private spinners: Phaser.GameObjects.Sprite[] = [];
   private level: number = 1;
   private spinnerCount: number = 3;
   private rotationSpeed: number = 2; // 每秒旋转角度
@@ -29,36 +29,9 @@ export class SpinnerWeapon {
 
     // 创建新的滚轮
     for (let i = 0; i < this.spinnerCount; i++) {
-      const spinner = this.scene.add.graphics();
-      this.drawSpinner(spinner);
+      const textureName = this.evolved ? 'weapon_spinner_evolved' : 'weapon_spinner';
+      const spinner = this.scene.add.sprite(0, 0, textureName);
       this.spinners.push(spinner);
-    }
-  }
-
-  private drawSpinner(g: Phaser.GameObjects.Graphics) {
-    g.clear();
-
-    const color = this.evolved ? 0x00ffff : 0x00ff00; // 进化后变为青色
-    const size = this.evolved ? 20 : 15; // 进化后更大
-
-    // 滚轮外圈
-    g.lineStyle(this.evolved ? 4 : 3, color, 1);
-    g.strokeCircle(0, 0, size);
-
-    // 滚轮辐条
-    for (let i = 0; i < (this.evolved ? 8 : 6); i++) {
-      const angle = (i / (this.evolved ? 8 : 6)) * Math.PI * 2;
-      g.lineBetween(0, 0, Math.cos(angle) * size, Math.sin(angle) * size);
-    }
-
-    // 中心
-    g.fillStyle(color, 1);
-    g.fillCircle(0, 0, this.evolved ? 7 : 5);
-
-    // 进化后添加光环
-    if (this.evolved) {
-      g.lineStyle(2, 0xffffff, 0.5);
-      g.strokeCircle(0, 0, size + 5);
     }
   }
 
@@ -80,7 +53,7 @@ export class SpinnerWeapon {
     });
   }
 
-  private checkCollision(spinner: Phaser.GameObjects.Graphics, x: number, y: number) {
+  private checkCollision(spinner: Phaser.GameObjects.Sprite, x: number, y: number) {
     // 从场景获取敌人
     this.scene.events.emit('weapon-hit-check', x, y, 15, this.damage);
   }

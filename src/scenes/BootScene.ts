@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { SpriteFactory } from '../utils/SpriteFactory';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -47,6 +48,12 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
+    console.log('🎨 生成游戏纹理...');
+
+    // 创建所有游戏纹理
+    const spriteFactory = new SpriteFactory(this);
+    spriteFactory.createAllTextures();
+
     console.log('✅ 资源加载完成');
     // 跳转到主菜单
     this.scene.start('MainMenuScene');

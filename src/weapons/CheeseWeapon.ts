@@ -54,15 +54,8 @@ export class CheeseWeapon {
   private placeTrap() {
     const trap = this.scene.add.container(this.player.x, this.player.y);
 
-    // 绘制奶酪
-    const sprite = this.scene.add.graphics();
-    sprite.fillStyle(0xffd700, 1);
-    sprite.fillRoundedRect(-20, -15, 40, 30, 5);
-    sprite.fillStyle(0xffff00, 0.8);
-    sprite.fillCircle(-8, -5, 4);
-    sprite.fillCircle(5, 0, 3);
-    sprite.fillCircle(0, 8, 5);
-
+    // 创建奶酪精灵
+    const sprite = this.scene.add.sprite(0, 0, 'weapon_cheese');
     trap.add(sprite);
     trap.setData('age', 0);
     trap.setData('radius', 40);

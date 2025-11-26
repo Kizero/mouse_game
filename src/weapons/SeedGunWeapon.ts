@@ -53,11 +53,7 @@ export class SeedGunWeapon {
     if (!nearestEnemy) return;
 
     // 创建瓜子子弹
-    const bullet = this.scene.add.graphics();
-    bullet.fillStyle(0xffa500, 1);
-    bullet.fillEllipse(0, 0, 6, 4);
-    bullet.setPosition(this.player.x, this.player.y);
-
+    const bullet = this.scene.add.sprite(this.player.x, this.player.y, 'weapon_seed');
     this.bullets.add(bullet);
 
     // 计算方向

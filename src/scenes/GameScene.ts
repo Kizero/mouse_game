@@ -10,6 +10,7 @@ import { SkillManager, HamsterType } from '../systems/SkillManager';
 import { ExperienceGem } from '../entities/ExperienceGem';
 import { ParticleManager } from '../effects/ParticleManager';
 import { CameraEffects } from '../effects/CameraEffects';
+import { BackgroundManager } from '../effects/BackgroundManager';
 import { ProgressionManager } from '../systems/ProgressionManager';
 
 export class GameScene extends Phaser.Scene {
@@ -23,6 +24,7 @@ export class GameScene extends Phaser.Scene {
   private expGems!: Phaser.GameObjects.Group;
   private particleManager!: ParticleManager;
   private cameraEffects!: CameraEffects;
+  private backgroundManager!: BackgroundManager;
 
   private gameTime: number = 0;
   private totalKills: number = 0;
@@ -47,6 +49,7 @@ export class GameScene extends Phaser.Scene {
     // 初始化特效系统
     this.particleManager = new ParticleManager(this);
     this.cameraEffects = new CameraEffects(this);
+    this.backgroundManager = new BackgroundManager(this);
 
     // 淡入效果
     this.cameraEffects.fadeIn(500);
@@ -349,6 +352,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyManager.update(delta, this.gameTime);
     this.skillManager.update();
     this.uiManager.update(this.gameTime, this.skillManager);
+    this.backgroundManager.update(this.player.x, this.player.y);
 
     // 检查玩家拾取经验宝石
     this.checkExpGemCollection();

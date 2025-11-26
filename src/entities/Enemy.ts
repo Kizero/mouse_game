@@ -6,7 +6,7 @@ export type EnemyType = 'ant' | 'cockroach' | 'spider' | 'beetle' | 'boss';
 
 export class Enemy extends Phaser.GameObjects.Container {
   public body!: Phaser.Physics.Arcade.Body;
-  private sprite: Phaser.GameObjects.Graphics;
+  private sprite: Phaser.GameObjects.Sprite;
   private enemyType: EnemyType;
   private health: number = 0;
   private maxHealth: number = 0;
@@ -78,80 +78,10 @@ export class Enemy extends Phaser.GameObjects.Container {
     }
   }
 
-  private createEnemySprite(): Phaser.GameObjects.Graphics {
-    const g = this.scene.add.graphics();
-
-    switch (this.enemyType) {
-      case 'ant':
-        // 蚂蚁（黑色小圆）
-        g.fillStyle(0x000000, 1);
-        g.fillCircle(0, 0, 8);
-        g.fillCircle(-6, -3, 5);
-        g.fillCircle(6, -3, 5);
-        // 触角
-        g.lineStyle(2, 0x000000);
-        g.lineBetween(-3, -8, -5, -12);
-        g.lineBetween(3, -8, 5, -12);
-        break;
-
-      case 'cockroach':
-        // 蟑螂（棕色椭圆）
-        g.fillStyle(0x8b4513, 1);
-        g.fillEllipse(0, 0, 16, 12);
-        g.fillStyle(0x654321, 1);
-        g.fillEllipse(0, 0, 12, 8);
-        break;
-
-      case 'spider':
-        // 蜘蛛（灰色带腿）
-        g.fillStyle(0x666666, 1);
-        g.fillCircle(0, 0, 10);
-        // 腿
-        g.lineStyle(2, 0x333333);
-        for (let i = 0; i < 8; i++) {
-          const angle = (i / 8) * Math.PI * 2;
-          g.lineBetween(0, 0, Math.cos(angle) * 12, Math.sin(angle) * 12);
-        }
-        break;
-
-      case 'beetle':
-        // 甲虫（深绿色）
-        g.fillStyle(0x2d5016, 1);
-        g.fillEllipse(0, 0, 14, 18);
-        g.lineStyle(2, 0x1a300d);
-        g.lineBetween(0, -9, 0, 9);
-        break;
-
-      case 'boss':
-        // Boss - 巨型老鼠王（红色威胁）
-        // 主体
-        g.fillStyle(0xcc0000, 1);
-        g.fillCircle(0, 5, 35);
-        g.fillCircle(0, -10, 28);
-        // 眼睛
-        g.fillStyle(0xff0000, 1);
-        g.fillCircle(-12, -12, 6);
-        g.fillCircle(12, -12, 6);
-        g.fillStyle(0x000000, 1);
-        g.fillCircle(-12, -12, 3);
-        g.fillCircle(12, -12, 3);
-        // 耳朵
-        g.fillStyle(0xaa0000, 1);
-        g.fillCircle(-22, -20, 12);
-        g.fillCircle(22, -20, 12);
-        // 獠牙
-        g.fillStyle(0xffffff, 1);
-        g.fillTriangle(-8, -5, -5, -5, -6.5, 2);
-        g.fillTriangle(8, -5, 5, -5, 6.5, 2);
-        // 皇冠
-        g.fillStyle(0xffd700, 1);
-        for (let i = -2; i <= 2; i++) {
-          g.fillTriangle(i * 8 - 4, -28, i * 8 + 4, -28, i * 8, -35);
-        }
-        break;
-    }
-
-    return g;
+  private createEnemySprite(): Phaser.GameObjects.Sprite {
+    const textureName = `enemy_${this.enemyType}`;
+    const sprite = this.scene.add.sprite(0, 0, textureName);
+    return sprite;
   }
 
   update(player: Player) {

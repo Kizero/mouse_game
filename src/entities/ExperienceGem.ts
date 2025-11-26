@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 
 export class ExperienceGem extends Phaser.GameObjects.Container {
   public body!: Phaser.Physics.Arcade.Body;
-  private sprite: Phaser.GameObjects.Graphics;
+  private sprite: Phaser.GameObjects.Sprite;
   private value: number;
 
   constructor(scene: Phaser.Scene, x: number, y: number, value: number) {
@@ -18,7 +18,7 @@ export class ExperienceGem extends Phaser.GameObjects.Container {
     if (value >= 10) color = 0xff00ff; // 紫色（高价值）
     this.setData('color', color);
 
-    // 创建宝石图形
+    // 创建宝石精灵
     this.sprite = this.createGemSprite();
     this.add(this.sprite);
 
@@ -44,29 +44,14 @@ export class ExperienceGem extends Phaser.GameObjects.Container {
     this.setSize(16, 16);
   }
 
-  private createGemSprite(): Phaser.GameObjects.Graphics {
-    const g = this.scene.add.graphics();
+  private createGemSprite(): Phaser.GameObjects.Sprite {
+    // 根据价值选择精灵纹理
+    let textureName = 'gem_green'; // 低价值
+    if (this.value >= 5) textureName = 'gem_blue'; // 中等
+    if (this.value >= 10) textureName = 'gem_purple'; // 高价值
 
-    // 根据价值选择颜色
-    let color = 0x00ff00; // 绿色（低价值）
-    if (this.value >= 5) color = 0x0099ff; // 蓝色（中等）
-    if (this.value >= 10) color = 0xff00ff; // 紫色（高价值）
-
-    // 宝石形状（菱形）
-    g.fillStyle(color, 1);
-    g.beginPath();
-    g.moveTo(0, -8);
-    g.lineTo(6, 0);
-    g.lineTo(0, 8);
-    g.lineTo(-6, 0);
-    g.closePath();
-    g.fillPath();
-
-    // 高光
-    g.fillStyle(0xffffff, 0.5);
-    g.fillCircle(-2, -3, 3);
-
-    return g;
+    const sprite = this.scene.add.sprite(0, 0, textureName);
+    return sprite;
   }
 
   getValue(): number {

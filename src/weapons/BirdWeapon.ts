@@ -42,17 +42,8 @@ export class BirdWeapon {
   private spawnBird() {
     const bird = this.scene.add.container(this.player.x, this.player.y);
 
-    // 绘制小鸟
-    const sprite = this.scene.add.graphics();
-    sprite.fillStyle(0x4169e1, 1);
-    sprite.fillEllipse(0, 0, 12, 8);
-    sprite.fillStyle(0x000000, 1);
-    sprite.fillCircle(3, -1, 2);
-    // 翅膀
-    sprite.fillStyle(0x1e90ff, 1);
-    sprite.fillEllipse(-5, 0, 8, 4);
-    sprite.fillEllipse(5, 0, 8, 4);
-
+    // 创建小鸟精灵
+    const sprite = this.scene.add.sprite(0, 0, 'weapon_bird');
     bird.add(sprite);
     bird.setData('sprite', sprite);
     bird.setData('targetEnemy', null);
