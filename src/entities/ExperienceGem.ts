@@ -12,6 +12,12 @@ export class ExperienceGem extends Phaser.GameObjects.Container {
 
     this.value = value;
 
+    // 根据价值选择颜色并存储
+    let color = 0x00ff00; // 绿色（低价值）
+    if (value >= 5) color = 0x0099ff; // 蓝色（中等）
+    if (value >= 10) color = 0xff00ff; // 紫色（高价值）
+    this.setData('color', color);
+
     // 创建宝石图形
     this.sprite = this.createGemSprite();
     this.add(this.sprite);

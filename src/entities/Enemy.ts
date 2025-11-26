@@ -156,18 +156,25 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   private die() {
-    // 掉落经验宝石
-    this.scene.events.emit('enemy-killed', this.x, this.y, this.expValue);
+    // 根据敌人类型选择颜色
+    let color = 0x000000; // 默认黑色
+    switch (this.enemyType) {
+      case 'ant':
+        color = 0x000000;
+        break;
+      case 'cockroach':
+        color = 0x8b4513;
+        break;
+      case 'spider':
+        color = 0x666666;
+        break;
+      case 'beetle':
+        color = 0x2d5016;
+        break;
+    }
 
-    // 死亡特效
-    const circle = this.scene.add.circle(this.x, this.y, 20, 0xff0000, 0.5);
-    this.scene.tweens.add({
-      targets: circle,
-      alpha: 0,
-      scale: 1.5,
-      duration: 300,
-      onComplete: () => circle.destroy(),
-    });
+    // 掉落经验宝石（传递颜色）
+    this.scene.events.emit('enemy-killed', this.x, this.y, this.expValue, color);
 
     this.destroy();
   }

@@ -25,7 +25,7 @@ export class MainMenuScene extends Phaser.Scene {
     subtitle.setOrigin(0.5);
 
     // 开始按钮
-    const startButton = this.add.text(WIDTH / 2, HEIGHT / 2 + 50, '开始游戏', {
+    const startButton = this.add.text(WIDTH / 2, HEIGHT / 2 + 20, '开始游戏', {
       fontSize: '32px',
       color: '#fff',
       backgroundColor: '#ff6b35',
@@ -45,6 +45,28 @@ export class MainMenuScene extends Phaser.Scene {
 
     startButton.on('pointerdown', () => {
       this.scene.start('GameScene');
+    });
+
+    // 元进度按钮
+    const metaButton = this.add.text(WIDTH / 2, HEIGHT / 2 + 90, '🏠 仓鼠小窝', {
+      fontSize: '28px',
+      color: '#fff',
+      backgroundColor: '#4a90e2',
+      padding: { x: 25, y: 12 },
+    });
+    metaButton.setOrigin(0.5);
+    metaButton.setInteractive({ useHandCursor: true });
+
+    metaButton.on('pointerover', () => {
+      metaButton.setScale(1.1);
+    });
+
+    metaButton.on('pointerout', () => {
+      metaButton.setScale(1);
+    });
+
+    metaButton.on('pointerdown', () => {
+      this.scene.start('MetaProgressScene');
     });
 
     // 说明文本

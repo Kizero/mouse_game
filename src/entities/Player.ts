@@ -138,7 +138,13 @@ export class Player extends Phaser.GameObjects.Container {
 
   private die() {
     console.log('💀 玩家死亡');
-    // TODO: 实现死亡逻辑
+
+    // 触发死亡事件
+    this.scene.events.emit('player-death');
+
+    // 禁用玩家
+    this.setActive(false);
+    this.setVisible(false);
   }
 
   // Getters
