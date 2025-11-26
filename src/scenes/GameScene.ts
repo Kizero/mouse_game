@@ -242,14 +242,14 @@ export class GameScene extends Phaser.Scene {
     // 环形水波伤害（用于水壶喷泉）
     this.events.on('weapon-wave-damage', (x: number, y: number, innerRadius: number, outerRadius: number, damage: number, pushForce: number) => {
       const enemies = this.enemyManager.getEnemies().getChildren();
-
+    
       enemies.forEach((enemy: any) => {
-        if (!enemy.active) return;
-
+        if (!enemy.active || !enemy.body) return;  // ← 添加 !enemy.body 检查
+    
         const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
         if (dist >= innerRadius && dist <= outerRadius) {
           enemy.takeDamage(damage);
-
+    
           // 击退效果
           const angle = Math.atan2(enemy.y - y, enemy.x - x);
           const body = enemy.body as Phaser.Physics.Arcade.Body;
