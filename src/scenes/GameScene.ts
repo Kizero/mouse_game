@@ -116,7 +116,58 @@ export class GameScene extends Phaser.Scene {
     // 玩家升级
     this.events.on('player-levelup', (level: number) => {
       console.log(`🎉 升级到 Lv.${level}!`);
-      // TODO: 显示升级选择界面
+      this.showLevelUpScreen();
+    });
+
+    // 区域伤害（用于木屑旋风、奶酪陷阱等）
+    this.events.on('weapon-area-damage', (x: number, y: number, radius: number, damage: number, callback?: Function) => {
+      const enemies = this.enemyManager.getEnemies().getChildren();
+
+      enemies.forEach((enemy: any) => {
+        if (!enemy.active) return;
+
+        const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
+        if (dist < radius) {
+          enemy.takeDamage(damage);
+          if (callback) callback(enemy);
+        }
+      });
+    });
+
+    // 环形水波伤害（用于水壶喷泉）
+    this.events.on('weapon-wave-damage', (x: number, y: number, innerRadius: number, outerRadius: number, damage: number, pushForce: number) => {
+      const enemies = this.enemyManager.getEnemies().getChildren();
+
+      enemies.forEach((enemy: any) => {
+        if (!enemy.active) return;
+
+        const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
+        if (dist >= innerRadius && dist <= outerRadius) {
+          enemy.takeDamage(damage);
+
+          // 击退效果
+          const angle = Math.atan2(enemy.y - y, enemy.x - x);
+          const body = enemy.body as Phaser.Physics.Arcade.Body;
+          body.setVelocity(
+            body.velocity.x + Math.cos(angle) * pushForce,
+            body.velocity.y + Math.sin(angle) * pushForce
+          );
+        }
+      });
+    });
+  }
+
+  private showLevelUpScreen() {
+    // 暂停游戏
+    this.scene.pause();
+    this.scene.launch('LevelUpScene', {
+      weaponManager: this.weaponManager,
+      currentWeapons: Array.from(this.weaponManager.getWeapons().keys()),
+    });
+
+    // 监听升级选择完成
+    this.scene.get('LevelUpScene').events.once('selection-made', () => {
+      this.scene.resume();
     });
   }
 
