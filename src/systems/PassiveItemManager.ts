@@ -293,8 +293,13 @@ export class PassiveItemManager {
    * 更新玩家属性
    */
   private updatePlayerStats() {
-    // 这里可以将计算好的属性应用到玩家身上
-    // 由于Player类可能需要扩展，这里先预留接口
+    // 应用属性到玩家身上
+    this.player.applyPassiveStats({
+      maxHealth: this.stats.maxHealth - 100, // 减去基础值
+      moveSpeed: this.stats.moveSpeed,
+      dodgeChance: this.stats.dodgeChance,
+      healthPerLevel: this.stats.healthPerLevel,
+    });
   }
 
   /**

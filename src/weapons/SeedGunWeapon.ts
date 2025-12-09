@@ -13,6 +13,9 @@ export class SeedGunWeapon {
   private fireRate: number = 300; // 毫秒
   private lastFireTime: number = 0;
   private bulletSpeed: number = 300;
+  private evolved: boolean = false;
+  private burstCount: number = 1; // 连发数量
+  private piercing: boolean = false; // 穿透效果
 
   constructor(scene: Phaser.Scene, player: Player) {
     this.scene = scene;
@@ -33,9 +36,9 @@ export class SeedGunWeapon {
     this.bullets.getChildren().forEach((bullet: any) => {
       if (!bullet.active) return;
 
-      // 检查碰撞
+      // 检查碰撞（如果有穿透效果则不销毁子弹）
       this.scene.events.emit('weapon-hit-check', bullet.x, bullet.y, 5, this.damage, (hit: boolean) => {
-        if (hit) {
+        if (hit && !this.piercing) {
           bullet.destroy();
         }
       });
@@ -52,25 +55,46 @@ export class SeedGunWeapon {
     const nearestEnemy = this.findNearestEnemy();
     if (!nearestEnemy) return;
 
-    // 创建瓜子子弹
-    const bullet = this.scene.add.sprite(this.player.x, this.player.y, 'weapon_seed');
+    // 连发机制
+    for (let i = 0; i < this.burstCount; i++) {
+      this.scene.time.delayedCall(i * 50, () => {
+        this.fireBullet(nearestEnemy, i);
+      });
+    }
+  }
+
+  private fireBullet(target: any, index: number) {
+    // 创建子弹（进化后使用不同纹理）
+    const textureName = this.evolved ? 'weapon_seed' : 'weapon_seed'; // 可以在这里使用不同的纹理
+    const bullet = this.scene.add.sprite(this.player.x, this.player.y, textureName);
+
+    // 如果是进化版本，设置不同的颜色
+    if (this.evolved) {
+      bullet.setTint(0xffaa00); // 金色
+    }
+
     this.bullets.add(bullet);
 
-    // 计算方向
-    const dx = nearestEnemy.x - this.player.x;
-    const dy = nearestEnemy.y - this.player.y;
+    // 计算方向（连发时添加轻微散射）
+    const dx = target.x - this.player.x;
+    const dy = target.y - this.player.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // 添加散射角度（进化后散射更小）
+    const spreadAngle = this.evolved ? 0.1 : 0.15;
+    const spread = (index - (this.burstCount - 1) / 2) * spreadAngle;
+    const angle = Math.atan2(dy, dx) + spread;
 
     // 添加物理体
     this.scene.physics.add.existing(bullet);
     const body = bullet.body as Phaser.Physics.Arcade.Body;
     body.setVelocity(
-      (dx / distance) * this.bulletSpeed,
-      (dy / distance) * this.bulletSpeed
+      Math.cos(angle) * this.bulletSpeed,
+      Math.sin(angle) * this.bulletSpeed
     );
 
     // 旋转子弹
-    bullet.setRotation(Math.atan2(dy, dx));
+    bullet.setRotation(angle);
   }
 
   private findNearestEnemy(): any {
@@ -99,5 +123,17 @@ export class SeedGunWeapon {
 
   getLevel(): number {
     return this.level;
+  }
+
+  evolve() {
+    if (this.evolved) return;
+
+    this.evolved = true;
+    this.burstCount = 5; // 5连发
+    this.piercing = true; // 穿透效果
+    this.damage *= 1.5; // 伤害提升50%
+    this.bulletSpeed *= 1.3; // 子弹速度提升30%
+
+    console.log(`⚡ 瓜子机关枪进化为：坚果风暴！`);
   }
 }

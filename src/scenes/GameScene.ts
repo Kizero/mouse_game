@@ -53,11 +53,18 @@ export class GameScene extends Phaser.Scene {
     this.cameraEffects = new CameraEffects(this);
     this.backgroundManager = new BackgroundManager(this);
 
-    // 初始化音频系统
+    // 初始化音频系统（异步加载，不阻塞游戏启动）
     this.audioManager = new AudioManager(this);
-    this.audioManager.init().then(() => {
-      this.audioManager.playMusic();
-    });
+    this.audioManager.init()
+      .then(() => {
+        if (this.audioManager.isAudioReady()) {
+          this.audioManager.playMusic();
+          console.log('🎵 音频系统就绪，开始播放音乐');
+        }
+      })
+      .catch((error) => {
+        console.error('音频初始化错误:', error);
+      });
 
     // 淡入效果
     this.cameraEffects.fadeIn(500);
@@ -89,8 +96,9 @@ export class GameScene extends Phaser.Scene {
     // 初始化技能系统（默认金仓鼠）
     this.skillManager = new SkillManager(this, this.player, 'golden');
 
-    // 连接武器管理器和被动道具管理器
+    // 连接武器管理器和其他系统
     this.weaponManager.setPassiveItemManager(this.passiveItemManager);
+    this.weaponManager.setSkillManager(this.skillManager);
 
     // 设置输入
     this.setupInput();
@@ -160,19 +168,31 @@ export class GameScene extends Phaser.Scene {
       const enemies = this.enemyManager.getEnemies().getChildren();
       let hit = false;
 
+      // 应用技能和被动道具的伤害倍率
+      const finalDamage = this.weaponManager.calculateFinalDamage(damage);
+
+      // 暴击判定
+      const critChance = this.passiveItemManager.getStat('critChance');
+      const isCrit = Math.random() < critChance;
+      const actualDamage = isCrit ? Math.floor(finalDamage * 2) : finalDamage;
+
       enemies.forEach((enemy: any) => {
         if (!enemy.active) return;
 
         const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
         if (dist < radius + 12) {
-          enemy.takeDamage(damage);
+          enemy.takeDamage(actualDamage);
           hit = true;
 
-          // 击中特效
-          this.particleManager.weaponHit(x, y);
+          // 暴击特效
+          if (isCrit) {
+            this.particleManager.weaponHit(x, y, 0xffaa00);
+          } else {
+            this.particleManager.weaponHit(x, y);
+          }
 
           // 击中音效
-          this.audioManager.playSound('weapon_hit', 0.3);
+          this.audioManager.playSound('weapon_hit', isCrit ? 0.5 : 0.3);
         }
       });
 
@@ -223,17 +243,29 @@ export class GameScene extends Phaser.Scene {
     this.events.on('weapon-area-damage', (x: number, y: number, radius: number, damage: number, callback?: Function) => {
       const enemies = this.enemyManager.getEnemies().getChildren();
 
+      // 应用技能和被动道具的伤害倍率
+      const finalDamage = this.weaponManager.calculateFinalDamage(damage);
+
+      // 应用范围大小倍率
+      const areaMultiplier = this.weaponManager.getAreaSizeMultiplier();
+      const finalRadius = radius * areaMultiplier;
+
       enemies.forEach((enemy: any) => {
         if (!enemy.active) return;
 
         const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
-        if (dist < radius) {
-          enemy.takeDamage(damage);
+        if (dist < finalRadius) {
+          // 暴击判定
+          const critChance = this.passiveItemManager.getStat('critChance');
+          const isCrit = Math.random() < critChance;
+          const actualDamage = isCrit ? Math.floor(finalDamage * 2) : finalDamage;
+
+          enemy.takeDamage(actualDamage);
           if (callback) callback(enemy);
 
           // 击中特效（但频率降低）
           if (Math.random() < 0.3) {
-            this.particleManager.weaponHit(enemy.x, enemy.y, 0xffa500);
+            this.particleManager.weaponHit(enemy.x, enemy.y, isCrit ? 0xffaa00 : 0xffa500);
           }
         }
       });
@@ -242,14 +274,27 @@ export class GameScene extends Phaser.Scene {
     // 环形水波伤害（用于水壶喷泉）
     this.events.on('weapon-wave-damage', (x: number, y: number, innerRadius: number, outerRadius: number, damage: number, pushForce: number) => {
       const enemies = this.enemyManager.getEnemies().getChildren();
-    
+
+      // 应用技能和被动道具的伤害倍率
+      const finalDamage = this.weaponManager.calculateFinalDamage(damage);
+
+      // 应用范围大小倍率
+      const areaMultiplier = this.weaponManager.getAreaSizeMultiplier();
+      const finalInnerRadius = innerRadius * areaMultiplier;
+      const finalOuterRadius = outerRadius * areaMultiplier;
+
       enemies.forEach((enemy: any) => {
-        if (!enemy.active || !enemy.body) return;  // ← 添加 !enemy.body 检查
-    
+        if (!enemy.active || !enemy.body) return;
+
         const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
-        if (dist >= innerRadius && dist <= outerRadius) {
-          enemy.takeDamage(damage);
-    
+        if (dist >= finalInnerRadius && dist <= finalOuterRadius) {
+          // 暴击判定
+          const critChance = this.passiveItemManager.getStat('critChance');
+          const isCrit = Math.random() < critChance;
+          const actualDamage = isCrit ? Math.floor(finalDamage * 2) : finalDamage;
+
+          enemy.takeDamage(actualDamage);
+
           // 击退效果
           const angle = Math.atan2(enemy.y - y, enemy.x - x);
           const body = enemy.body as Phaser.Physics.Arcade.Body;
@@ -340,6 +385,40 @@ export class GameScene extends Phaser.Scene {
         });
       }
     });
+
+    // 玩家闪避事件
+    this.events.on('player-dodged', (x: number, y: number) => {
+      // 闪避特效和文字提示
+      const dodgeText = this.add.text(x, y - 40, 'DODGE!', {
+        fontSize: '24px',
+        color: '#00ffff',
+        fontStyle: 'bold',
+      }).setOrigin(0.5);
+
+      this.tweens.add({
+        targets: dodgeText,
+        y: y - 80,
+        alpha: 0,
+        duration: 800,
+        ease: 'Cubic.easeOut',
+        onComplete: () => dodgeText.destroy(),
+      });
+
+      // 闪避粒子特效
+      this.particleManager.weaponHit(x, y, 0x00ffff);
+    });
+
+    // 生命恢复系统（每秒触发）
+    this.time.addEvent({
+      delay: 1000, // 每秒
+      callback: () => {
+        const healthRegen = this.passiveItemManager.getStat('healthRegen');
+        if (healthRegen > 0) {
+          this.player.heal(healthRegen);
+        }
+      },
+      loop: true,
+    });
   }
 
   private showLevelUpScreen() {
@@ -389,6 +468,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private checkExpGemCollection() {
+    // 获取拾取范围（被动道具加成）
+    const pickupRange = this.passiveItemManager.getStat('pickupRange');
+
     this.expGems.getChildren().forEach((gem: any) => {
       if (!gem.active) return;
 
@@ -399,8 +481,8 @@ export class GameScene extends Phaser.Scene {
         gem.y
       );
 
-      // 磁铁效果：靠近时吸引
-      if (dist < 80) {
+      // 磁铁效果：靠近时吸引（使用被动道具的拾取范围）
+      if (dist < pickupRange) {
         const angle = Math.atan2(this.player.y - gem.y, this.player.x - gem.x);
         const attractSpeed = 200;
         const body = gem.body as Phaser.Physics.Arcade.Body;
@@ -411,7 +493,10 @@ export class GameScene extends Phaser.Scene {
       }
 
       if (dist < 30) {
-        this.player.addExperience(gem.getValue());
+        // 应用经验获取加成
+        const expGainBonus = this.passiveItemManager.getStat('expGain');
+        const finalExp = Math.floor(gem.getValue() * expGainBonus);
+        this.player.addExperience(finalExp);
 
         // 收集特效
         this.particleManager.collectGem(
@@ -576,6 +661,12 @@ export class GameScene extends Phaser.Scene {
     this.cameraEffects.shakeHeavy();
     this.cameraEffects.flash(0x00ffff, 500);
     this.cameraEffects.zoom(1.3, 400);
+
+    // 进化音效（使用 levelup 音效，音量更高）
+    this.audioManager.playSound('levelup', 1.2);
+    this.time.delayedCall(200, () => {
+      this.audioManager.playSound('skill_use', 0.8);
+    });
 
     // 显示进化提示
     const { WIDTH, HEIGHT } = GAME_CONFIG;
