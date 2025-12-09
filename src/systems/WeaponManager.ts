@@ -79,6 +79,7 @@ export class WeaponManager {
   private weapons: Map<WeaponType, any> = new Map();
   private evolvedWeapons: Set<WeaponType> = new Set();
   private passiveItemManager?: any; // Will be set from GameScene
+  private skillManager?: any; // Will be set from GameScene
 
   constructor(scene: Phaser.Scene, player: Player) {
     this.scene = scene;
@@ -87,6 +88,82 @@ export class WeaponManager {
 
   setPassiveItemManager(manager: any) {
     this.passiveItemManager = manager;
+  }
+
+  setSkillManager(manager: any) {
+    this.skillManager = manager;
+  }
+
+  /**
+   * 计算最终伤害（应用技能和被动道具倍率）
+   */
+  calculateFinalDamage(baseDamage: number): number {
+    let finalDamage = baseDamage;
+
+    // 应用技能倍率
+    if (this.skillManager) {
+      const skillMultipliers = this.skillManager.getEffectMultipliers();
+      finalDamage *= skillMultipliers.damageMultiplier;
+    }
+
+    // 应用被动道具倍率
+    if (this.passiveItemManager) {
+      const damageBonus = this.passiveItemManager.getStat('damage');
+      finalDamage *= damageBonus;
+    }
+
+    return Math.floor(finalDamage);
+  }
+
+  /**
+   * 计算最终攻击速度倍率
+   */
+  getAttackSpeedMultiplier(): number {
+    let multiplier = 1.0;
+
+    // 应用技能倍率
+    if (this.skillManager) {
+      const skillMultipliers = this.skillManager.getEffectMultipliers();
+      multiplier *= skillMultipliers.attackSpeedMultiplier;
+    }
+
+    // 应用被动道具倍率
+    if (this.passiveItemManager) {
+      const attackSpeedBonus = this.passiveItemManager.getStat('attackSpeed');
+      multiplier *= attackSpeedBonus;
+    }
+
+    return multiplier;
+  }
+
+  /**
+   * 获取范围大小倍率
+   */
+  getAreaSizeMultiplier(): number {
+    if (this.passiveItemManager) {
+      return this.passiveItemManager.getStat('areaSize');
+    }
+    return 1.0;
+  }
+
+  /**
+   * 获取弹射数量加成
+   */
+  getProjectileCountBonus(): number {
+    if (this.passiveItemManager) {
+      return Math.floor(this.passiveItemManager.getStat('projectileCount'));
+    }
+    return 0;
+  }
+
+  /**
+   * 获取召唤物持续时间倍率
+   */
+  getSummonDurationMultiplier(): number {
+    if (this.passiveItemManager) {
+      return this.passiveItemManager.getStat('summonDuration');
+    }
+    return 1.0;
   }
 
   addWeapon(type: WeaponType) {

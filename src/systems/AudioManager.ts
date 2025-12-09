@@ -9,6 +9,7 @@ export class AudioManager {
   private sounds: Map<string, Phaser.Sound.BaseSound> = new Map();
   private backgroundMusic?: Phaser.Sound.BaseSound;
   private soundGenerator: SoundGenerator;
+  private isInitialized: boolean = false;
 
   // 音量设置
   private masterVolume: number = 0.7;
@@ -30,6 +31,11 @@ export class AudioManager {
    * 初始化音频系统
    */
   async init(): Promise<void> {
+    if (this.isInitialized) {
+      console.log('⚠️ 音频系统已初始化，跳过');
+      return;
+    }
+
     console.log('🔊 初始化音频系统...');
 
     try {
@@ -45,10 +51,19 @@ export class AudioManager {
       const musicBuffer = await this.soundGenerator.generateBackgroundMusic();
       this.createMusicFromBuffer(musicBuffer);
 
+      this.isInitialized = true;
       console.log('✅ 音频系统初始化完成');
     } catch (error) {
       console.error('❌ 音频系统初始化失败:', error);
+      this.isInitialized = false;
     }
+  }
+
+  /**
+   * 检查音频系统是否已初始化
+   */
+  isAudioReady(): boolean {
+    return this.isInitialized;
   }
 
   /**

@@ -7,8 +7,11 @@ export class Player extends Phaser.GameObjects.Container {
   private sprite: Phaser.GameObjects.Sprite;
   private health: number;
   private maxHealth: number;
+  private baseMaxHealth: number; // 基础最大生命值
   private baseSpeed: number;
   private currentSpeedMultiplier: number = 1;
+  private moveSpeedBonus: number = 1; // 来自被动道具的移速加成
+  private dodgeChance: number = 0; // 闪避率
 
   // 经验和等级
   private experience: number = 0;
@@ -20,7 +23,8 @@ export class Player extends Phaser.GameObjects.Container {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
-    this.maxHealth = GAME_CONFIG.PLAYER.START_HEALTH;
+    this.baseMaxHealth = GAME_CONFIG.PLAYER.START_HEALTH;
+    this.maxHealth = this.baseMaxHealth;
     this.health = this.maxHealth;
     this.baseSpeed = GAME_CONFIG.PLAYER.START_SPEED;
 
@@ -49,8 +53,8 @@ export class Player extends Phaser.GameObjects.Container {
       moveY /= length;
     }
 
-    // 应用速度
-    const speed = this.baseSpeed * this.currentSpeedMultiplier;
+    // 应用速度（包括被动道具加成）
+    const speed = this.baseSpeed * this.currentSpeedMultiplier * this.moveSpeedBonus;
     this.body.setVelocity(moveX * speed, moveY * speed);
 
     // 面向移动方向
@@ -64,6 +68,13 @@ export class Player extends Phaser.GameObjects.Container {
   }
 
   takeDamage(amount: number) {
+    // 闪避判定
+    if (Math.random() < this.dodgeChance) {
+      // 闪避成功！显示特效
+      this.scene.events.emit('player-dodged', this.x, this.y);
+      return;
+    }
+
     this.health = Math.max(0, this.health - amount);
 
     // 受伤闪烁效果
@@ -141,5 +152,55 @@ export class Player extends Phaser.GameObjects.Container {
 
   getLevel(): number {
     return this.level;
+  }
+
+  /**
+   * 应用被动道具属性
+   */
+  applyPassiveStats(stats: {
+    maxHealth?: number;
+    moveSpeed?: number;
+    dodgeChance?: number;
+    healthPerLevel?: number;
+  }) {
+    // 应用最大生命值
+    if (stats.maxHealth !== undefined) {
+      const healthPercentage = this.health / this.maxHealth; // 保持当前生命值百分比
+      this.maxHealth = Math.floor(this.baseMaxHealth + stats.maxHealth);
+
+      // 每级生命值加成
+      if (stats.healthPerLevel !== undefined) {
+        this.maxHealth += Math.floor(stats.healthPerLevel * this.level);
+      }
+
+      // 按百分比恢复生命值
+      this.health = Math.min(this.health, this.maxHealth);
+    }
+
+    // 应用移速加成
+    if (stats.moveSpeed !== undefined) {
+      this.moveSpeedBonus = stats.moveSpeed;
+    }
+
+    // 应用闪避率
+    if (stats.dodgeChance !== undefined) {
+      this.dodgeChance = Math.min(0.75, stats.dodgeChance); // 最大75%闪避率
+    }
+  }
+
+  /**
+   * 设置最大生命值
+   */
+  setMaxHealth(value: number) {
+    const oldMax = this.maxHealth;
+    this.maxHealth = value;
+
+    // 如果最大生命值增加，按比例恢复生命值
+    if (value > oldMax) {
+      const healthGain = value - oldMax;
+      this.health += healthGain;
+    }
+
+    this.health = Math.min(this.health, this.maxHealth);
   }
 }

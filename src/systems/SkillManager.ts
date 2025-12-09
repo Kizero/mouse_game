@@ -189,10 +189,10 @@ export class SkillManager {
     this.skillActive = true;
     this.skillEndTime = Date.now() + duration;
 
-    // 回复生命值
-    const healAmount = this.player.getData('maxHealth') * 0.5;
-    const currentHealth = this.player.getData('health');
-    this.player.setData('health', Math.min(currentHealth + healAmount, this.player.getData('maxHealth')));
+    // 回复生命值（回复50%最大生命值）
+    const maxHealth = this.player.getMaxHealth();
+    const healAmount = Math.floor(maxHealth * 0.5);
+    this.player.heal(healAmount);
 
     // 触发治疗事件
     this.scene.events.emit('player-healed', this.player.x, this.player.y, healAmount);
